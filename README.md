@@ -1,7 +1,7 @@
 # moltbot-memory-local
 
 <p align="center">
-  <img src="assets/privacy-crab.png" alt="Privacy Crab" width="400">
+  <img src="https://raw.githubusercontent.com/48Nauts-Operator/moltbot-memory-local/main/assets/privacy-crab-small.png" alt="Privacy Crab" width="400">
 </p>
 
 > Privacy-first local memory plugin for Moltbot
