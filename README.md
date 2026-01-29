@@ -189,6 +189,6 @@ MIT © Andre Wolke
 
 ## Links
 
-- [Documentation](https://gist.github.com/48Nauts-Operator/6d2be91208de723ca26fcbbb29ccd4b5)
+- [Documentation](https://gist.github.com/48Nauts-Operator/0c72802380ea03ec6b87c8ca8ff21b29)
 - [Moltbot](https://github.com/moltbot/moltbot)
 - [21nauts](https://21nauts.com)
