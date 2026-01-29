@@ -1,7 +1,7 @@
 {
-  "name": "moltbot-memory-sqlite",
+  "name": "moltbot-memory-local",
   "version": "0.1.0",
-  "description": "SQLite-based long-term memory plugin for Moltbot",
+  "description": "Privacy-first local memory plugin for Moltbot: SQLite for structured/temporal queries + local embeddings for semantic search. Zero cloud calls.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -9,6 +9,7 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "clean": "rm -rf dist",
+    "test": "node test.mjs",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -16,26 +17,30 @@
     "plugin",
     "memory",
     "sqlite",
+    "lancedb",
+    "embeddings",
+    "local",
+    "privacy",
     "ai",
-    "assistant",
-    "local-first",
-    "privacy"
+    "assistant"
   ],
   "author": "Andre Wolke <andre.wolke@proton.me>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/48Nauts-Operator/moltbot-memory-sqlite.git"
+    "url": "git+https://github.com/48Nauts-Operator/moltbot-memory-local.git"
   },
   "bugs": {
-    "url": "https://github.com/48Nauts-Operator/moltbot-memory-sqlite/issues"
+    "url": "https://github.com/48Nauts-Operator/moltbot-memory-local/issues"
   },
-  "homepage": "https://github.com/48Nauts-Operator/moltbot-memory-sqlite#readme",
+  "homepage": "https://github.com/48Nauts-Operator/moltbot-memory-local#readme",
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "sql.js": "^1.10.0"
+    "sql.js": "^1.10.0",
+    "@lancedb/lancedb": "^0.15.0",
+    "@xenova/transformers": "^2.17.0"
   },
   "devDependencies": {
     "@types/sql.js": "^1.4.9",

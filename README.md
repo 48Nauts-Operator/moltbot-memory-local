@@ -1,41 +1,43 @@
-# moltbot-memory-sqlite
+# moltbot-memory-local
 
-> SQLite-based long-term memory plugin for Moltbot
+> Privacy-first local memory plugin for Moltbot
 
-A lightweight, local-first memory plugin that stores memories in SQLite. Supports full-text search, categories, importance scoring, and GDPR-compliant deletion.
+**One plugin. Two search modes. Zero cloud calls.**
 
-## Why Local Memory?
+Combines SQLite (structured/temporal) + LanceDB (semantic/vector) into a single unified memory system. Everything runs locally on your machine.
 
-Your AI's memory shouldn't phone home. This plugin keeps all memories on your machine:
+## Why This Exists
 
-- **Privacy**: No data leaves your system
-- **Speed**: SQLite is fast, no network latency
-- **Offline**: Works without internet
-- **Control**: You own your data, delete anytime
+Most AI memory plugins send your data to cloud APIs for embedding. Your "local" memory phones home before storing anything.
+
+This plugin fixes that:
+- **SQLite** for structured storage, timestamps, full-text search
+- **LanceDB + local embeddings** for semantic similarity search
+- **Smart routing** automatically picks the right backend
+- **100% local** — no cloud calls, ever
 
 ## Installation
 
 ```bash
-npm install moltbot-memory-sqlite
+npm install moltbot-memory-local
 ```
 
 ## Configuration
-
-Add to your Moltbot config:
 
 ```json
 {
   "plugins": {
     "slots": {
-      "memory": "moltbot-memory-sqlite"
+      "memory": "moltbot-memory-local"
     },
     "entries": {
-      "moltbot-memory-sqlite": {
+      "moltbot-memory-local": {
         "enabled": true,
         "config": {
-          "dbPath": "~/.moltbot/memory.db",
+          "dataDir": "~/.moltbot/memory",
           "maxMemories": 10000,
-          "defaultImportance": 0.7
+          "embeddingModel": "Xenova/all-MiniLM-L6-v2",
+          "enableEmbeddings": true
         }
       }
     }
@@ -47,109 +49,139 @@ Add to your Moltbot config:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `dbPath` | string | `~/.moltbot/memory.db` | Path to SQLite database |
-| `maxMemories` | number | `10000` | Max memories before pruning |
-| `defaultImportance` | number | `0.7` | Default importance (0-1) |
-| `noisePatterns` | string[] | `[...]` | Regex patterns to filter noise |
+| `dataDir` | string | `~/.moltbot/memory` | Data directory |
+| `maxMemories` | number | `10000` | Max before pruning |
+| `embeddingModel` | string | `Xenova/all-MiniLM-L6-v2` | Local embedding model |
+| `enableEmbeddings` | boolean | `true` | Enable semantic search |
+| `defaultImportance` | number | `0.7` | Default memory importance |
+
+## How It Works
+
+### Automatic Query Routing
+
+The plugin detects query type and routes automatically:
+
+```
+"What did you do Thursday at 14:04?"  →  SQLite (temporal)
+"Find conversations about dark mode"  →  Vector search (semantic)
+"What is my email address?"           →  SQLite (exact lookup)
+"Similar ideas to X"                  →  Vector search (semantic)
+```
+
+### Manual Mode Selection
+
+Override automatic routing:
+
+```typescript
+// Force semantic search
+await memory_recall({ query: "...", mode: "semantic" });
+
+// Force structured search
+await memory_recall({ query: "...", mode: "structured" });
+
+// Let plugin decide (default)
+await memory_recall({ query: "...", mode: "auto" });
+```
 
 ## Usage
 
-The plugin exposes three tool handlers:
-
-### memory_store
-
-Save a memory:
+### Store
 
 ```typescript
 await memory_store({
-  text: "User prefers dark mode",
+  text: "User prefers dark mode in all applications",
   category: "preference",  // preference|fact|decision|entity|conversation|other
-  importance: 0.8          // 0-1, higher = more important
+  importance: 0.9          // 0-1, higher = kept longer
 });
 ```
 
-### memory_recall
+Memories are stored in both SQLite (full data) and LanceDB (vector for semantic search).
 
-Search memories:
+### Recall
 
 ```typescript
-const memories = await memory_recall({
-  query: "dark mode preferences",
-  limit: 5,
-  category: "preference",   // optional filter
-  dateFrom: "2025-01-01",   // optional
-  dateTo: "2025-12-31",     // optional
-  filterNoise: true         // filter "ok", "thanks", etc.
+// Temporal query → routed to SQLite
+const thursdayMemories = await memory_recall({
+  query: "what happened last Thursday",
+  limit: 5
+});
+
+// Semantic query → routed to vector search
+const similarMemories = await memory_recall({
+  query: "display and theme preferences",
+  limit: 5
+});
+
+// With filters
+const decisions = await memory_recall({
+  query: "project architecture",
+  category: "decision",
+  dateFrom: "2025-01-01"
 });
 ```
 
-### memory_forget
-
-Delete memories (GDPR-compliant):
+### Forget (GDPR)
 
 ```typescript
 // By ID
 await memory_forget({ memoryId: "uuid-here" });
 
-// By query (deletes all matches)
+// By query (deletes from both SQLite and vectors)
 await memory_forget({ query: "sensitive information" });
 ```
 
-## Direct Usage
+## Architecture
 
-You can also use the plugin directly:
-
-```typescript
-import { SqliteMemoryPlugin } from 'moltbot-memory-sqlite';
-
-const memory = new SqliteMemoryPlugin({
-  dbPath: './my-memories.db'
-});
-
-// Store
-const mem = memory.store({ text: "Important fact", category: "fact" });
-
-// Recall
-const results = memory.recall({ query: "important" });
-
-// Stats
-const stats = memory.stats();
-console.log(`Total memories: ${stats.total}`);
-
-// Cleanup
-memory.close();
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    moltbot-memory-local                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   ┌──────────────────┐      ┌──────────────────┐           │
+│   │     SQLite       │      │     LanceDB      │           │
+│   │  ──────────────  │      │  ──────────────  │           │
+│   │  Full text       │      │  Vector store    │           │
+│   │  Timestamps      │      │  Local embeddings│           │
+│   │  Metadata        │      │  Semantic search │           │
+│   │  Categories      │      │                  │           │
+│   └────────┬─────────┘      └────────┬─────────┘           │
+│            │                         │                      │
+│            └──────────┬──────────────┘                      │
+│                       │                                     │
+│              ┌────────▼────────┐                           │
+│              │  Query Router   │                           │
+│              │  ────────────── │                           │
+│              │  "Thursday?" →  │ → SQLite                  │
+│              │  "Similar?" →   │ → Vectors                 │
+│              └─────────────────┘                           │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+         ❌ No cloud     ✅ 100% Local     ✅ Your data
 ```
 
-## How It Works
+## Data Storage
 
-1. **Storage**: Memories stored in SQLite with FTS5 for full-text search
-2. **Search**: FTS5 provides fast, fuzzy text matching
-3. **Ranking**: Results sorted by importance, then recency
-4. **Pruning**: Old, low-importance memories auto-deleted when limit reached
-
-## Database Schema
-
-```sql
-CREATE TABLE memories (
-  id TEXT PRIMARY KEY,
-  text TEXT NOT NULL,
-  category TEXT DEFAULT 'other',
-  importance REAL DEFAULT 0.7,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  session_key TEXT,
-  metadata TEXT
-);
+```
+~/.moltbot/memory/
+├── memories.db      # SQLite database (structured data)
+└── vectors/         # LanceDB vector store (embeddings)
 ```
 
-## Why sql.js?
+## Embedding Models
 
-Uses [sql.js](https://github.com/sql-js/sql.js) (SQLite compiled to WebAssembly):
+Default: `Xenova/all-MiniLM-L6-v2` (384 dimensions, ~23MB)
 
-- ✅ Works on any Node.js version (including v25+)
-- ✅ No native compilation or build tools needed
-- ✅ macOS, Linux, Windows, ARM, x86
-- ✅ Truly portable
+Alternatives:
+- `Xenova/e5-small-v2` — Better quality, similar size
+- `Xenova/all-MiniLM-L12-v2` — More accurate, larger
+
+Models download automatically on first use.
+
+## Fallback Behavior
+
+- If LanceDB fails → falls back to SQLite-only search
+- If embeddings disabled → SQLite full-text search only
+- If embedding fails for a memory → stored in SQLite, skipped in vectors
 
 ## License
 
@@ -157,6 +189,6 @@ MIT © Andre Wolke
 
 ## Links
 
-- [Full Documentation (Gist)](https://gist.github.com/48Nauts-Operator/6d2be91208de723ca26fcbbb29ccd4b5)
+- [Documentation](https://gist.github.com/48Nauts-Operator/6d2be91208de723ca26fcbbb29ccd4b5)
 - [Moltbot](https://github.com/moltbot/moltbot)
 - [21nauts](https://21nauts.com)
