@@ -1,5 +1,9 @@
 # moltbot-memory-local
 
+<p align="center">
+  <img src="assets/privacy-crab.png" alt="Privacy Crab" width="400">
+</p>
+
 > Privacy-first local memory plugin for Moltbot
 
 **One plugin. Two search modes. Zero cloud calls.**
