@@ -1,6 +1,6 @@
 {
   "name": "moltbot-memory-local",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Privacy-first local memory plugin for Moltbot: SQLite for structured/temporal queries + local embeddings for semantic search. Zero cloud calls.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
