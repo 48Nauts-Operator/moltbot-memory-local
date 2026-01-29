@@ -1,0 +1,53 @@
+{
+  "name": "moltbot-memory-sqlite",
+  "version": "0.1.0",
+  "description": "SQLite-based long-term memory plugin for Moltbot",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "moltbot",
+    "plugin",
+    "memory",
+    "sqlite",
+    "ai",
+    "assistant",
+    "local-first",
+    "privacy"
+  ],
+  "author": "Andre Wolke <andre.wolke@proton.me>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/48Nauts-Operator/moltbot-memory-sqlite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/48Nauts-Operator/moltbot-memory-sqlite/issues"
+  },
+  "homepage": "https://github.com/48Nauts-Operator/moltbot-memory-sqlite#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "peerDependencies": {
+    "moltbot": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "moltbot": {
+      "optional": true
+    }
+  }
+}
