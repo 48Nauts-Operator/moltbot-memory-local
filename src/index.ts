@@ -129,6 +129,7 @@ function detectQueryType(query: string): 'semantic' | 'structured' {
 let embeddingPipeline: any = null;
 let lanceDb: any = null;
 let lanceTable: any = null;
+let tableCreationPromise: Promise<void> | null = null;
 
 async function getEmbeddingPipeline(modelName: string) {
   if (!embeddingPipeline) {
@@ -164,17 +165,40 @@ async function initLanceDB(dataDir: string): Promise<void> {
 }
 
 async function ensureLanceTable(dimensions: number): Promise<void> {
+  // Return if table already exists
   if (lanceTable) return;
   
-  // Create table with initial dummy record (LanceDB requires at least one)
-  lanceTable = await lanceDb.createTable('memories', [{
-    id: '__init__',
-    vector: new Array(dimensions).fill(0),
-    text: '',
-  }]);
+  // If another call is already creating the table, wait for it
+  if (tableCreationPromise) {
+    await tableCreationPromise;
+    return;
+  }
   
-  // Delete the dummy
-  await lanceTable.delete('id = "__init__"');
+  // Create table with lock to prevent race condition
+  tableCreationPromise = (async () => {
+    try {
+      // Double-check after acquiring "lock"
+      const tables = await lanceDb.tableNames();
+      if (tables.includes('memories')) {
+        lanceTable = await lanceDb.openTable('memories');
+        return;
+      }
+      
+      // Create table with initial dummy record (LanceDB requires at least one)
+      lanceTable = await lanceDb.createTable('memories', [{
+        id: '__init__',
+        vector: new Array(dimensions).fill(0),
+        text: '',
+      }]);
+      
+      // Delete the dummy
+      await lanceTable.delete('id = "__init__"');
+    } finally {
+      tableCreationPromise = null;
+    }
+  })();
+  
+  await tableCreationPromise;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -474,11 +498,13 @@ export class LocalMemoryPlugin {
       stmt.free();
 
       // Return in order of semantic relevance, with scores
+      // LanceDB uses L2 distance by default. Convert to similarity score (0-1)
+      // For normalized vectors, L2 distance ranges from 0 to 2
       return searchResults
         .filter((r: any) => memoryMap.has(r.id))
         .map((r: any) => ({
           ...memoryMap.get(r.id)!,
-          score: 1 - (r._distance || 0), // Convert distance to similarity
+          score: Math.max(0, 1 - (r._distance || 0) / 2), // Normalize L2 to 0-1 similarity
         }));
 
     } catch (err) {
@@ -489,6 +515,7 @@ export class LocalMemoryPlugin {
 
   /**
    * Delete a memory (GDPR-compliant) - removes from both SQLite and vectors
+   * Uses strict text matching (not semantic) to avoid accidental deletions
    */
   async forget(params: MemoryForgetParams): Promise<{ deleted: number }> {
     if (!this.db) throw new Error('Database not initialized. Call init() first.');
@@ -499,7 +526,8 @@ export class LocalMemoryPlugin {
     if (params.memoryId) {
       idsToDelete = [params.memoryId];
     } else if (params.query) {
-      const memories = await this.recall({ query: params.query, limit: 100, filterNoise: false });
+      // Use strict structured search for forget - don't want semantic "similar" deletions
+      const memories = this.structuredSearch({ query: params.query, filterNoise: false }, 100);
       idsToDelete = memories.map(m => m.id);
     }
 
